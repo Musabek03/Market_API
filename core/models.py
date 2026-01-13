@@ -5,10 +5,13 @@ class CustomUser(AbstractUser):
     CHOICES = [("admin","Admin"), ("client","Client")] 
 
     role = models.CharField(max_length=15, choices=CHOICES,default="client", verbose_name="role")
-    phone_number = models.IntegerField(unique=True, verbose_name="Telfon nomeri")
+    phone_number = models.CharField(max_length=20, unique=True, verbose_name="Telefon nomeri")
     Address = models.CharField(max_length=100, blank=True,null=True, verbose_name="User Adresi")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    REQUIRED_FIELDS = ['phone_number']
+
 
     groups = models.ManyToManyField(
         "auth.Group",
@@ -63,10 +66,9 @@ class Cart(models.Model):
     
     @property
     def total_price(self):
-        car_items = self.items.all()
         total = 0
-        for item in car_items:
-            total += item.get.total.price
+        for item in self.items.all():
+            total += item.get_total_price()
         return total
 
 
