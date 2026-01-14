@@ -42,7 +42,7 @@ class Category(models.Model):
 class Product(models.Model):
     category = models.ForeignKey(Category,on_delete=models.CASCADE, related_name='products', verbose_name="Kategoriya")
     name = models.CharField(max_length=60, verbose_name="Produkt ati")
-    slug = models.URLField(unique=True)
+    slug = models.SlugField(unique=True)
     description = models.TextField(blank=True, verbose_name="Toliq magliwmat")
     price = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Produkt bahasi")
     discount_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Shegirmeli baha")

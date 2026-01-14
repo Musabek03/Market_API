@@ -7,7 +7,7 @@ from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from django_filters.rest_framework import DjangoFilterBackend
-from .serializers import ProductsSerializer,CartSerializer,AddCartSerializer,CartItemSerializer
+from .serializers import ProductsSerializer,CartSerializer,AddCartSerializer
 from .models import CustomUser,Category,Product,Cart,CartItem,Order,OrderItem
 from .filters import ProductFilter
 
@@ -15,6 +15,7 @@ from .filters import ProductFilter
 class ProductView(viewsets.ReadOnlyModelViewSet):
     queryset = Product.objects.all()
     serializer_class = ProductsSerializer
+    permission_classes = [permissions.AllowAny]
     filter_backends = [filters.SearchFilter,DjangoFilterBackend, filters.OrderingFilter]
     search_fields = ['name']
     filterset_class = ProductFilter
@@ -37,10 +38,14 @@ class CartView(viewsets.ModelViewSet):
         serializer = AddCartSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        product_id = serializer.validated_data['product.id']
-        quantity = serializer.validated_data_get('quantity', 1)
+        product_id = serializer.validated_data['product_id']
+        quantity = serializer.validated_data.get('quantity', 1)
 
         product = get_object_or_404(Product,id=product_id)
+
+        if product.stock<quantity:
+            return Response({"error":"Skladda jeterli produkt joq"}, status=status.HTTP_400_BAD_REQUEST)
+
         cart, _ = Cart.objects.get_or_create(user=request.user)
 
         cart_item, created = CartItem.objects.get_or_create(cart=cart,product=product)
@@ -54,9 +59,9 @@ class CartView(viewsets.ModelViewSet):
         cart_item.save()
         return Response({"message": "Product sebetke qosildi"}, status=status.HTTP_201_CREATED)
     
-    @action(detail=False,methods=['delete'], url_path=r'remove/(?P<id>\d+)') #Bul jerde d+ tek gana sanlardi uslap al degeni.
-    def remove_item(self, request, item_id=None):
-        cart_item = get_object_or_404(CartItem, id=item_id, cart__user=request.user)
+    @action(detail=False,methods=['delete'], url_path=r'remove/(?P<pk>\d+)') #Bul jerde d+ tek gana sanlardi uslap al degeni.
+    def remove_item(self, request, pk=None):
+        cart_item = get_object_or_404(CartItem, id=pk, cart__user=request.user)
         cart_item.delete()
         return Response({'message':'Produkt sebetten oshirildi'}, status=status.HTTP_204_NO_CONTENT)
     
