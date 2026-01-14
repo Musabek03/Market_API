@@ -46,3 +46,6 @@ node_modules/
 dist/
 build/
 *.egg-info/
+
+test.txt/
+test.txt

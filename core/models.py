@@ -64,12 +64,6 @@ class Cart(models.Model):
     def __str__(self):
         return f"{self.user.username} sebeti"
     
-    @property
-    def total_price(self):
-        total = 0
-        for item in self.items.all():
-            total += item.get_total_price()
-        return total
 
 
 class CartItem(models.Model):
