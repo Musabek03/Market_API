@@ -1,8 +1,61 @@
 from rest_framework import serializers
 from .models import CustomUser,Category,Product,Cart,CartItem,Order,OrderItem
 
+
+class CategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Category
+        fields = ['id', 'name']
+
 class ProductsSerializer(serializers.ModelSerializer):
+    category = CategorySerializer()
     class Meta:
         model = Product
-        fields = "__all__"
+        fields = ['id','category','name','description','price','discount_price', 'stock', 'image', 'is_active']
 
+
+
+class CartItemSerializer(serializers.ModelSerializer):
+
+    product = ProductsSerializer(read_only=True) #Onim toliq koriniwi ushin
+    product_id = serializers.PrimaryKeyRelatedField(queryset = Product.objects.all(), source = 'product', write_only = True)
+
+
+    class Meta:
+        model = CartItem
+        fields = ['id', 'product', 'product_id', 'quantity' ]
+
+class CartSerializer(serializers.ModelSerializer):
+
+    items = CartItemSerializer(many=True, read_only=True)
+    total_price = serializers.SerializerMethodField()
+
+    def get_total_price(self,obj):
+
+        items = obj.items.all()
+        prices = []
+
+        for item in items:
+            prices.append(item.get_total_price())
+        
+        return sum(prices)
+
+    class Meta:
+        model = Cart
+        fields = ['id', 'user', 'items','total_price']
+
+    
+class OrderItemSerializer(serializers.ModelSerializer):
+    product = ProductsSerializer(read_only=True)
+
+    class Meta:
+        model =  OrderItem
+        fields = ['id','product','quantity', 'price']
+
+
+class OrderSerializer(serializers.ModelSerializer):
+    orderitems = OrderItemSerializer(many=True)
+
+    class Meta:
+        model = Order
+        fields = ['id','user', 'orderitems', 'total_price', 'status', 'address', 'created_at']

@@ -45,7 +45,7 @@ class Product(models.Model):
     slug = models.SlugField(unique=True)
     description = models.TextField(blank=True, verbose_name="Toliq magliwmat")
     price = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Produkt bahasi")
-    discount_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Shegirmeli baha")
+    discount_price = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Shegirmeli baha")
     image = models.ImageField(upload_to='products/', blank=True,null=True,verbose_name="Produkt suwreti")
     stock = models.IntegerField(default=0,verbose_name="Produkt sani")
     is_active = models.BooleanField(default=True, verbose_name="Satiwda barma")
@@ -68,7 +68,7 @@ class Cart(models.Model):
 
 class CartItem(models.Model):
     cart = models.ForeignKey(Cart, on_delete=models.CASCADE, related_name='items')
-    product = models.ForeignKey(Product,on_delete=models.CASCADE)
+    product = models.OneToOneField(Product,on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField(default=1)
 
     def __str__(self):
@@ -94,7 +94,7 @@ class Order(models.Model):
 
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, related_name='orderitems',on_delete=models.CASCADE)
-    product = models.ForeignKey(Product, on_delete=models.SET_NULL, null=True)
+    product = models.OneToOneField(Product, on_delete=models.SET_NULL, null=True)
     quantity = models.PositiveIntegerField(default=1)
     price = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Satilgan bahasi")
 
