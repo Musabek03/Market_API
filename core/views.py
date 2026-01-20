@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from rest_framework import viewsets,filters,permissions,status
+from rest_framework import viewsets,filters,permissions,status,generics
 from rest_framework.pagination import PageNumberPagination
 import django_filters
 from rest_framework.decorators import action
@@ -7,9 +7,10 @@ from django.shortcuts import get_object_or_404
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db import transaction
-from .serializers import ProductsSerializer,CartItemSerializer,CartSerializer, OrderItemSerializer, OrderSerializer
+from .serializers import ProductsSerializer,CartItemSerializer,CartSerializer, OrderItemSerializer, OrderSerializer,UserRegisterSerializer
 from .models import CustomUser,Category,Product,Cart,CartItem,Order,OrderItem
 from .filters import ProductFilter
+from rest_framework import permissions
 
 
 class ProductViewSet(viewsets.ReadOnlyModelViewSet):
@@ -27,6 +28,7 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
 class CartViewSet(viewsets.ModelViewSet):
     queryset = Cart.objects.all()
     serializer_class = CartSerializer
+    permission_classes = [permissions.IsAuthenticated]
     
     def get_queryset(self):
         return Cart.objects.filter(user=self.request.user)
@@ -73,6 +75,8 @@ class CartViewSet(viewsets.ModelViewSet):
 class OrderViewSet(viewsets.ModelViewSet):
     queryset = Order.objects.all()
     serializer_class = OrderSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
 
     def get_queryset(self):
         return Order.objects.filter(user=self.request.user)
@@ -113,5 +117,10 @@ class OrderViewSet(viewsets.ModelViewSet):
             cart.items.all().delete()
 
         return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
+
+
+class RegisterView(generics.CreateAPIView):
+    queryset = CustomUser.objects.all()
+    serializer_class = UserRegisterSerializer
 
 
