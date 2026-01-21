@@ -1,23 +1,23 @@
 from django.shortcuts import render
 from rest_framework import viewsets,filters,permissions,status,generics
 from rest_framework.pagination import PageNumberPagination
-import django_filters
 from rest_framework.decorators import action
 from django.shortcuts import get_object_or_404
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db import transaction
-from .serializers import ProductsSerializer,CartItemSerializer,CartSerializer, OrderItemSerializer, OrderSerializer,UserRegisterSerializer
-from .models import CustomUser,Category,Product,Cart,CartItem,Order,OrderItem
+from .serializers import ProductsSerializer, CartSerializer, OrderSerializer, UserRegisterSerializer
+from .models import CustomUser,Category, Product, Cart, CartItem, Order, OrderItem
 from .filters import ProductFilter
 from rest_framework import permissions
+from .permissions import IsAdminOrReadOnly
 
 
 class ProductViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Product.objects.all()
     serializer_class = ProductsSerializer
-    permission_classes = [permissions.AllowAny]
-    filter_backends = [filters.SearchFilter,DjangoFilterBackend, filters.OrderingFilter]
+    permission_classes = [IsAdminOrReadOnly]
+    filter_backends = [filters.SearchFilter, DjangoFilterBackend, filters.OrderingFilter]
     search_fields = ['name']
     filterset_class = ProductFilter
     ordering_fields = ['price']
@@ -85,15 +85,24 @@ class OrderViewSet(viewsets.ModelViewSet):
     def checkout(self,request):
         user = request.user
         address = request.data.get('address') #adresti klient jiberiw kerek
+        cart_item_ids = request.data.get('cart_items', [])
+
+        if not address:
+            return Response({'error':'Jetkerip beriw adresi kiritilmegen'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if not cart_item_ids:
+            return Response({'error':'Product tanlanbagan'}, status=status.HTTP_400_BAD_REQUEST)
+
 
         cart  =  get_object_or_404(Cart,user=user)      #Cart.objects.get(user=user)  
 
-        cart_items = cart.items.all()
+        cart_items = cart.items.filter(id__in=cart_item_ids)
+        
 
         if not cart_items.exists():
             return Response({'error':'Sebet bos'}, status=status.HTTP_400_BAD_REQUEST)
         
-        with transaction.atomic():
+        with transaction.atomic():  
 
             total_price = 0
 
@@ -110,11 +119,11 @@ class OrderViewSet(viewsets.ModelViewSet):
 
             for item in cart_items:
                 
-                OrderItem.objects.create(order=order, product=item.product, quantity=item.quantity, price= item.product.price)
+                OrderItem.objects.create(order=order, product=item.product, quantity=item.quantity, price=item.product.price)
                 item.product.stock -= item.quantity
                 item.product.save()
             
-            cart.items.all().delete()
+            cart_items.delete()
 
         return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
 

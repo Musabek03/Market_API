@@ -8,16 +8,16 @@ class CategorySerializer(serializers.ModelSerializer):
         fields = ['id', 'name']
 
 class ProductsSerializer(serializers.ModelSerializer):
-    category = CategorySerializer()
+    category = CategorySerializer(read_only=True)
     class Meta:
         model = Product
-        fields = ['id','category','name','description','price','discount_price', 'stock', 'image', 'is_active']
+        fields = ['id','category','name','description','price','discount_price', 'image',]
 
 
 
 class CartItemSerializer(serializers.ModelSerializer):
 
-    product = ProductsSerializer(read_only=True) #Onim toliq koriniwi ushin
+    product = ProductsSerializer(read_only=True)
     product_id = serializers.PrimaryKeyRelatedField(queryset = Product.objects.all(), source = 'product', write_only = True)
 
 
@@ -75,3 +75,4 @@ class UserRegisterSerializer(serializers.ModelSerializer):
             phone_number = validated_data['phone_number'],)
         
         return user
+    
