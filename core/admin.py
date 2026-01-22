@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Category, Product,Cart, CartItem,Order, OrderItem
+from .models import Category, Product,Cart, CartItem,Order, OrderItem,Notification
 
 
 @admin.register(Category)
@@ -30,3 +30,8 @@ class OrderAdmin(admin.ModelAdmin):
 @admin.register(OrderItem)
 class OrderItemAdmin(admin.ModelAdmin):
     list_display = ('order','product', 'quantity', 'price')
+
+
+@admin.register(Notification)
+class NotificationAdmin(admin.ModelAdmin):
+    list_display = ('user', 'message', 'is_read', 'created_at')
