@@ -7,14 +7,14 @@ from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db import transaction
 from .serializers import ProductsSerializer, CartSerializer, OrderSerializer, UserRegisterSerializer
-from .models import CustomUser,Category, Product, Cart, CartItem, Order, OrderItem
+from .models import CustomUser, Product, Cart, CartItem, Order, OrderItem
 from .filters import ProductFilter
 from rest_framework import permissions
 from .permissions import IsAdminOrReadOnly
 
 
-class ProductViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Product.objects.all()
+class ProductViewSet(viewsets.ModelViewSet):
+    queryset = Product.objects.all().select_related('category')  
     serializer_class = ProductsSerializer
     permission_classes = [IsAdminOrReadOnly]
     filter_backends = [filters.SearchFilter, DjangoFilterBackend, filters.OrderingFilter]
@@ -31,7 +31,7 @@ class CartViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
     
     def get_queryset(self):
-        return Cart.objects.filter(user=self.request.user)
+        return Cart.objects.filter(user=self.request.user).prefetch_related('items__product')
     
     def perform_create(self,serializer):
         serializer.save(user=self.request.user)

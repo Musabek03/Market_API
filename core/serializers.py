@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import CustomUser,Category,Product,Cart,CartItem,Order,OrderItem
+from django.utils.text import slugify
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -9,10 +10,15 @@ class CategorySerializer(serializers.ModelSerializer):
 
 class ProductsSerializer(serializers.ModelSerializer):
     category = CategorySerializer(read_only=True)
+    category_id = serializers.PrimaryKeyRelatedField(queryset = Category.objects.all(), source = 'category', write_only = True)
+
     class Meta:
         model = Product
-        fields = ['id','category','name','description','price','discount_price', 'image',]
+        fields = ['id','category', 'category_id', 'name','description','price','discount_price', 'image',]
 
+    def create(self, validated_data):
+        validated_data['slug'] = slugify(validated_data['name'])
+        return super().create(validated_data)
 
 
 class CartItemSerializer(serializers.ModelSerializer):
