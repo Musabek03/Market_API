@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import CustomUser,Category,Product,Cart,CartItem,Order,OrderItem
+from .models import CustomUser,Category,Product,Cart,CartItem,Order,OrderItem, Review
 from django.utils.text import slugify
 
 
@@ -50,6 +50,12 @@ class CartSerializer(serializers.ModelSerializer):
         model = Cart
         fields = ['id', 'user', 'items','total_price']
 
+
+class CartAddSerializer(serializers.Serializer):
+
+    product_id = serializers.IntegerField()
+    quantity = serializers.IntegerField(default=1)  
+
     
 class OrderItemSerializer(serializers.ModelSerializer):
     product = ProductsSerializer(read_only=True)
@@ -67,6 +73,12 @@ class OrderSerializer(serializers.ModelSerializer):
         fields = ['id','user', 'orderitems', 'total_price', 'status', 'address', 'created_at']
 
 
+class CheckoutSerializer(serializers.Serializer):
+
+    address = serializers.CharField(max_length=450, required=True)
+    cart_items = serializers.ListField(child=serializers.IntegerField(),required=False)
+
+
 class UserRegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
 
@@ -82,3 +94,11 @@ class UserRegisterSerializer(serializers.ModelSerializer):
         
         return user
     
+
+class ReviewSerializer(serializers.ModelSerializer):
+    user = serializers.StringRelatedField(read_only=True)
+    class Meta:
+        model = Review
+        fields = ['id', 'user', 'product', 'text','rating', 'created_at']
+
+

@@ -4,12 +4,14 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.decorators import action
 from django.shortcuts import get_object_or_404
 from rest_framework.response import Response
+from drf_spectacular.utils import extend_schema
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db import transaction
-from .serializers import ProductsSerializer, CartSerializer, OrderSerializer, UserRegisterSerializer
-from .models import CustomUser, Product, Cart, CartItem, Order, OrderItem
+from .serializers import ProductsSerializer, CartSerializer, OrderSerializer, UserRegisterSerializer, ReviewSerializer, CartAddSerializer, CheckoutSerializer
+from .models import CustomUser, Product, Cart, CartItem, Order, OrderItem, Review
 from .filters import ProductFilter
 from rest_framework import permissions
+from rest_framework.exceptions import ValidationError
 from .permissions import IsAdminOrReadOnly
 
 
@@ -37,7 +39,7 @@ class CartViewSet(viewsets.ModelViewSet):
         serializer.save(user=self.request.user)
     
     
-    
+    @extend_schema(request=CartAddSerializer)
     @action(detail=False, methods=['post'])
     def add(self, request):
         product_id = request.data.get('product_id')    
@@ -81,26 +83,31 @@ class OrderViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return Order.objects.filter(user=self.request.user)
     
+
+    @extend_schema(request=CheckoutSerializer, responses=OrderSerializer)
     @action(detail=False,methods=['post'])
     def checkout(self,request):
+        serializer = CheckoutSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
         user = request.user
-        address = request.data.get('address') #adresti klient jiberiw kerek
-        cart_item_ids = request.data.get('cart_items', [])
+        address = serializer.validated_data['address'] 
+        cart_item_ids = serializer.validated_data.get('cart_items') 
 
-        if not address:
-            return Response({'error':'Jetkerip beriw adresi kiritilmegen'}, status=status.HTTP_400_BAD_REQUEST)
-        
-        if not cart_item_ids:
-            return Response({'error':'Product tanlanbagan'}, status=status.HTTP_400_BAD_REQUEST)
+        cart = get_object_or_404(Cart, user=user)
 
-
-        cart  =  get_object_or_404(Cart,user=user)      #Cart.objects.get(user=user)  
-
-        cart_items = cart.items.filter(id__in=cart_item_ids)
-        
+        # 2. LOGIKA: Tańlap alıw yamasa Hámmesin alıw
+        if cart_item_ids:
+            cart_items = cart.items.select_related('product').filter(id__in=cart_item_ids)
+            
+            # Tekseriw: Klient jibergen ID-lar durıs pa?
+            if cart_items.count() != len(cart_item_ids):
+                return Response({'error': 'Ayirim onimler tabilmadi yamasa sizge tiyisli emes'}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            cart_items = cart.items.select_related('product').all()  # Eger ID-lar jibermese, Sebettegi HÁMME zattı alamız
 
         if not cart_items.exists():
-            return Response({'error':'Sebet bos'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'Satip aliw ushin onim joq'}, status=status.HTTP_400_BAD_REQUEST)
         
         with transaction.atomic():  
 
@@ -119,7 +126,7 @@ class OrderViewSet(viewsets.ModelViewSet):
 
             for item in cart_items:
                 
-                OrderItem.objects.create(order=order, product=item.product, quantity=item.quantity, price=item.product.price)
+                OrderItem.objects.create(order=order, product=item.product, quantity=item.quantity, price=item.product.get_active_price())
                 item.product.stock -= item.quantity
                 item.product.save()
             
@@ -132,4 +139,38 @@ class RegisterView(generics.CreateAPIView):
     queryset = CustomUser.objects.all()
     serializer_class = UserRegisterSerializer
 
+   
+
+class ReviewViewSet(viewsets.ModelViewSet):
+    queryset = Review.objects.all()
+    serializer_class = ReviewSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        product_id = self.request.data.get('product') 
+        
+        product = get_object_or_404(Product,id=product_id)
+        statuslar = ['tolendi', 'jiberildi']
+        satip_alingan = OrderItem.objects.filter(order__user=user, product=product, order__status__in=statuslar).exists()
+
+
+        if not satip_alingan:
+            raise ValidationError("Siz bul onimdi satip almagansiz")
+
+        serializer.save(user=user, product = product)
+
+
+    # @action(detail=False,methods=['post'])
+    # def comment(self,request):
+
+    #     user = request.user
+    #     product_id = request.data.get('product_id') 
+    #     order_items = OrderItem.objects.filter(product=product_id)
+
+    #     if not order_items:
+    #         Response({'error':'Comment jaziw ushin Siz bul produktti satip almagansiz!'}, status=status.HTTP_400_BAD_REQUEST)
+        
+    #     comment = Comment.objects.create(user=user, product = product_id, )
 

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Category, Product,Cart, CartItem,Order, OrderItem,Notification, CustomUser
+from .models import Category, Product, Order, Notification, CustomUser
 from django.contrib.auth.admin import UserAdmin 
 
 
@@ -7,12 +7,15 @@ from django.contrib.auth.admin import UserAdmin
 class CategoryAdmin(admin.ModelAdmin):
     list_display = ('name',)
     prepopulated_fields = {'slug': ('name',)}
+    search_fields = ('name',)
 
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
     list_display = ('name','slug','description','price',)
     prepopulated_fields = {'slug': ('name',)}
+    search_fields = ('name', 'description', 'price')
+    list_filter = ('is_active', 'created_at', 'stock')
 
 
 @admin.register(Order)

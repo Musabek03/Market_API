@@ -45,7 +45,7 @@ class Product(models.Model):
     slug = models.SlugField(unique=True)
     description = models.TextField(blank=True, verbose_name="Toliq magliwmat")
     price = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Produkt bahasi")
-    discount_price = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Shegirmeli baha")
+    discount_price = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Shegirmeli baha", null=True, blank=True)
     image = models.ImageField(upload_to='products/', blank=True,null=True,verbose_name="Produkt suwreti")
     stock = models.IntegerField(default=0,verbose_name="Produkt sani")
     is_active = models.BooleanField(default=True, verbose_name="Satiwda barma")
@@ -54,6 +54,11 @@ class Product(models.Model):
 
     def __str__(self):
         return self.name
+    
+    def get_active_price(self):
+        if self.discount_price and self.discount_price > 0:
+            return self.discount_price
+        return self.price
 
 
 class Cart(models.Model):
@@ -75,7 +80,7 @@ class CartItem(models.Model):
         return f"{self.product.name} li {self.quantity} dana product bar"
     
     def get_total_price(self):
-        return self.product.price*self.quantity
+        return self.product.get_active_price()*self.quantity
     
 
 class Order(models.Model):
@@ -113,9 +118,22 @@ class Notification(models.Model):
 
     def __str__(self):
         return f"{self.user} ge xabar: {self.message}"
+
+
+class Review(models.Model):
+
+    CHOICES = [(1,"1"), (2,"2"), (3,"3"), (4,"4"), (5,"5")]
+
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="reviews")
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    text = models.TextField()
+    rating = models.IntegerField(choices=CHOICES)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user','product') #bir klient bir onimge tek bir ret pikir bildiriwi ushin
     
-
-
-
+    def __str__(self):
+        return f"{self.user.username} nin {self.product.name} ga qaldirgan ratingi {self.rating}"
 
     
