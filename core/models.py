@@ -168,7 +168,7 @@ class Review(models.Model):
         CustomUser, on_delete=models.CASCADE, related_name="reviews"
     )
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
-    text = models.TextField()
+    text = models.TextField(blank=True, null=True)
     rating = models.IntegerField(choices=CHOICES)
     created_at = models.DateTimeField(auto_now_add=True)
 
