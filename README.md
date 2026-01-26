@@ -35,9 +35,9 @@ docker-compose exec web python manage.py createsuperuser
 
 ### Server iske tuskennen keyin, API hujjetlerin tomendegi siltemeler arqali koriwiniz mumkin:
 
-Swagger UI (Interaktiv): http://127.0.0.1:8000/api/schema/swagger-ui/
+Swagger UI (Interaktiv): http://127.0.0.1/api/schema/swagger-ui/
 
-Redoc: http://127.0.0.1:8000/api/schema/redoc/
+Redoc: http://127.0.0.1/api/schema/redoc/
 
 
 #### Tiykargi Endpointler Dizimi:
