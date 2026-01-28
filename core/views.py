@@ -15,7 +15,8 @@ from .serializers import (
     ReviewSerializer,
     CartAddSerializer,
     CheckoutSerializer,
-    CategorySerializer
+    CategorySerializer,
+    UserProfileSerializer,
 )
 from .models import CustomUser, Product, Cart, CartItem, Order, OrderItem, Review, Category
 from .filters import ProductFilter
@@ -37,7 +38,6 @@ class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         queryset =  Category.objects.filter(parent__isnull =True).prefetch_related('child')
 
-
         search_query = self.request.query_params.get('search', None)
 
         if search_query:
@@ -55,7 +55,7 @@ class ProductViewSet(viewsets.ModelViewSet):
         filters.OrderingFilter,
     ]
     search_fields = ["name"]
-    filterset_class = ProductFilter
+    filterset_class = ProductFilter 
     ordering_fields = ["price"]
     ordering = ["-price"]
 
@@ -136,25 +136,22 @@ class OrderViewSet(viewsets.ModelViewSet):
 
         cart = get_object_or_404(Cart, user=user)
 
-        if cart_item_ids:
-            cart_items = cart.items.select_related("product").filter(
-                id__in=cart_item_ids
-            )
-
-            if cart_items.count() != len(cart_item_ids):
-                return Response(
-                    {"error": "Ayirim onimler tabilmadi yamasa sizge tiyisli emes"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-        else:
-            cart_items = cart.items.select_related("product").all()
-        if not cart_items.exists():
-            return Response(
-                {"error": "Satip aliw ushin onim joq"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
 
         with transaction.atomic():
+
+            if cart_item_ids:
+                cart_items = cart.items.select_related('product').select_for_update(of=('product',)).filter(id__in=cart_item_ids)
+
+                if cart_items.count() != len(cart_item_ids):
+                    return Response(
+                    {"error": "Ayirim onimler tabilmadi yamasa sizge tiyisli emes"},
+                    status=status.HTTP_400_BAD_REQUEST)
+            
+            else:
+                cart_items = cart.items.select_related('product').select_for_update(of=('product',)).all()
+                
+            if not cart_items.exists():
+                    return Response({"error": "Sebet bos!"}, status=400)    
 
             total_price = 0
 
@@ -192,6 +189,14 @@ class OrderViewSet(viewsets.ModelViewSet):
 class RegisterView(generics.CreateAPIView):
     queryset = CustomUser.objects.all()
     serializer_class = UserRegisterSerializer
+
+
+class UserProfileView(generics.RetrieveUpdateAPIView):
+    serializer_class = UserProfileSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_object(self):
+        return self.request.user
 
 
 class ReviewViewSet(viewsets.ModelViewSet):

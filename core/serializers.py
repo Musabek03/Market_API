@@ -138,6 +138,14 @@ class UserRegisterSerializer(serializers.ModelSerializer):
         )
 
         return user
+    
+
+class UserProfileSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = CustomUser
+        fields = ['id', 'username', 'first_name', 'last_name', 'phone_number', 'Address', 'email']
+        read_only_fields = ['id', 'phone_number']
 
 
 class ReviewSerializer(serializers.ModelSerializer):
