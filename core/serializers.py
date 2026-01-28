@@ -13,9 +13,22 @@ from django.utils.text import slugify
 
 
 class CategorySerializer(serializers.ModelSerializer):
+    children = serializers.SerializerMethodField()
     class Meta:
         model = Category
-        fields = ["id", "name"]
+        fields = ["id", "name", "slug", "children"]
+
+    def get_children(self,obj):
+        
+        children = obj.child.all()
+
+        return [ 
+            {"id": child.id,
+             "name": child.name,
+             "slug": child.slug
+             }
+             for child in children
+                ]
 
 
 class ProductsSerializer(serializers.ModelSerializer):

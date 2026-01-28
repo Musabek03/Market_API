@@ -6,6 +6,7 @@ from .views import (
     OrderViewSet,
     RegisterView,
     ReviewViewSet,
+    CategoryViewSet
 )
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
@@ -14,6 +15,7 @@ from rest_framework_simplejwt.views import (
 
 router = DefaultRouter()
 
+router.register(r"categories",CategoryViewSet, basename="category")
 router.register(r"products", ProductViewSet, basename="product")
 router.register(r"cart", CartViewSet, basename="cart")
 router.register(r"orders", OrderViewSet, basename="Orders")

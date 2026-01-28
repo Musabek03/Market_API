@@ -15,13 +15,35 @@ from .serializers import (
     ReviewSerializer,
     CartAddSerializer,
     CheckoutSerializer,
+    CategorySerializer
 )
-from .models import CustomUser, Product, Cart, CartItem, Order, OrderItem, Review
+from .models import CustomUser, Product, Cart, CartItem, Order, OrderItem, Review, Category
 from .filters import ProductFilter
 from rest_framework import permissions
 from rest_framework.exceptions import ValidationError
 from .permissions import IsAdminOrReadOnly
 
+
+
+class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Category.objects.all()
+    serializer_class = CategorySerializer
+    permission_classes = [permissions.AllowAny]
+    filter_backends = [filters.SearchFilter]
+
+    search_fields = ['name', 'slug']
+
+
+    def get_queryset(self):
+        queryset =  Category.objects.filter(parent__isnull =True).prefetch_related('child')
+
+
+        search_query = self.request.query_params.get('search', None)
+
+        if search_query:
+            return queryset
+        else:
+            return queryset.filter(parent__isnull=True)
 
 class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all().select_related("category")
