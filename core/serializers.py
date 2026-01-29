@@ -10,6 +10,8 @@ from .models import (
     Review,
 )
 from django.utils.text import slugify
+from rest_framework.exceptions import ValidationError
+from django.core.cache import cache
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -124,18 +126,54 @@ class CheckoutSerializer(serializers.Serializer):
 
 
 class UserRegisterSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True)
+    password = serializers.CharField(write_only=True, style={'input_type':'password'}, help_text="Parol")
+    confirm_password = serializers.CharField(write_only=True, required=True,style={'input_type':'password'},help_text='Paroldi tastiyqlaw')
+    code = serializers.CharField(write_only=True, required=True,help_text="Telegram bot jibergen 6 xanali san")
 
     class Meta:
         model = CustomUser
-        fields = ["username", "phone_number", "password"]
+        fields = ["username", "phone_number", "password", "confirm_password", "code"]
+
+    def validate(self, attrs):
+        password = attrs.get('password')
+        confirm_password = attrs.get('confirm_password')
+
+        if password != confirm_password:
+            raise ValidationError({'confirm_password':'Paroller saykes emes,qaytadan jazin!'})
+        
+        code = attrs.get('code')
+        phone_number = attrs.get('phone_number')
+        cache_data = cache.get(f"auth_code_{code}")
+
+        if not cache_data:
+            raise ValidationError({'code':'Kod qate yamasa muddeti pitken(Bot arqali jana kod alin)'})
+        
+        cached_phone = cache_data.get('phone_number')
+
+        if cached_phone != phone_number:
+            raise ValidationError({"phone_number": f"Bul kod basqa nomer ushin berilgen, siz {phone_number} kiritip atirsiz."})
+        
+        attrs['telegram_chat_id'] = cache_data.get('chat_id')
+
+        return attrs
 
     def create(self, validated_data):
+
+        #Confirm_password ham code bazaga kerek emes, qiyip taslaymiz
+        validated_data.pop('confirm_password')
+        validated_data.pop('code')
+
+        chat_id = validated_data.pop('telegram_chat_id', None)
+
         user = CustomUser.objects.create_user(
             username=validated_data["username"],
             password=validated_data["password"],
             phone_number=validated_data["phone_number"],
         )
+
+        user.is_verified = True
+        user.telegram_chat_id = chat_id
+        user.save()
 
         return user
     
@@ -146,6 +184,21 @@ class UserProfileSerializer(serializers.ModelSerializer):
         model = CustomUser
         fields = ['id', 'username', 'first_name', 'last_name', 'phone_number', 'Address', 'email']
         read_only_fields = ['id', 'phone_number']
+
+
+class SetPasswordSerializer(serializers.Serializer):
+    new_password = serializers.CharField(write_only=True, required=True, style={'input_type': 'password'}, help_text="Jana Parol")
+    confirm_password = serializers.CharField(write_only=True, required=True, style={'input_type': 'paassword'}, help_text="Paroldi tasiytqlaw")
+
+    def validate(self, attrs):
+        if attrs['new_password'] != attrs['confirm_password']:
+            raise serializers.ValidationError({'confirm_password': 'Paroller saykes kelmeydi'})
+        return attrs
+
+
+#Swagger ushin
+class TelegramLoginSerializer(serializers.Serializer):
+    code = serializers.CharField(required=True, help_text="Telegram bot jibergen 6 xanali kod")
 
 
 class ReviewSerializer(serializers.ModelSerializer):

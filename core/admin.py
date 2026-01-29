@@ -35,4 +35,12 @@ class NotificationAdmin(admin.ModelAdmin):
 
 @admin.register(CustomUser)
 class CustomUserAdmin(UserAdmin):
-    list_display = ("username", "email", "phone_number", "role", "is_staff")
+     list_display = ('username', 'first_name', 'last_name', 'phone_number', 'role', 'is_staff', 'is_verified')
+
+     fieldsets = (
+        (None, {'fields': ('username', 'password')}), 
+        ('Jeke Magliwmatlar', {'fields': ('first_name', 'last_name', 'email', 'phone_number', 'Address')}),
+        ('Telegram Info', {'fields': ('telegram_chat_id', 'is_verified')}), 
+        ('Ruxsatlar (Permissions)', {'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions', 'role')}),
+        ('Waqitlar', {'fields': ('last_login', 'date_joined')}),
+    )

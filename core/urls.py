@@ -7,7 +7,10 @@ from .views import (
     RegisterView,
     ReviewViewSet,
     CategoryViewSet,
-    UserProfileView
+    UserProfileView,
+    TelegramWebhookView,
+    LoginWithCodeView,
+    SetPasswordView
 )
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
@@ -28,5 +31,8 @@ urlpatterns = [
     path("register/", RegisterView.as_view(), name="register"),
     path("login/", TokenObtainPairView.as_view(), name="login"),
     path("token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
-    path('profile/', UserProfileView.as_view(), name='user-profile')
+    path('profile/', UserProfileView.as_view(), name='user-profile'),
+    path('telegram-webhook/', TelegramWebhookView.as_view(),name='telegram-webhook'),
+    path('auth/telegram/', LoginWithCodeView.as_view(), name='telegram-login'),
+    path('profile/set-password/', SetPasswordView.as_view(), name='set-password')
 ]

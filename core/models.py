@@ -14,6 +14,10 @@ class CustomUser(AbstractUser):
     Address = models.CharField(
         max_length=100, blank=True, null=True, verbose_name="User Adresi"
     )
+
+    telegram_chat_id = models.CharField(max_length=40, blank=True, null=True)
+    is_verified = models.BooleanField(default=False)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

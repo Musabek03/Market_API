@@ -114,6 +114,13 @@ SIMPLE_JWT = {
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
 }
 
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'unique-snowflake',
+    }
+}
+
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -152,6 +159,10 @@ STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
+TELEGRAM_BOT_TOKEN = env("TELEGRAM_BOT_TOKEN")
+TELEGRAM_WEBHOOK_URL = env("TELEGRAM_WEBHOOK_URL")
+
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
@@ -162,4 +173,13 @@ AUTH_USER_MODEL = "core.CustomUser"
 
 INTERNAL_IPS = [
     "127.0.0.1",
+]
+#nginx jibergen headerdi oqiw ushin
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# CSRF ngrok ushin kerek
+CSRF_TRUSTED_ORIGINS = [
+    "https://*.ngrok-free.app", 
+    "http://localhost", 
+    "http://127.0.0.1"
 ]
