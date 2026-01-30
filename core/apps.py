@@ -16,8 +16,6 @@ class CoreConfig(AppConfig):
 
         #Server (Docker/Runserver) iske tuskende Webhook ornatiw
         # 'RUN_MAIN' -> Django runserver reloaderi ushon (eki ret islemewi ushin)
-        # Dockerde adette Gunicorn isletilse, bul shartke kirmeydi, sonliqtan
-        # biz tomendegi logikani qollanamiz
         
         try:
             self.set_telegram_webhook()

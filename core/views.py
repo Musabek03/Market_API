@@ -45,7 +45,7 @@ class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = CategorySerializer
     permission_classes = [permissions.AllowAny]
     filter_backends = [filters.SearchFilter]
-
+    pagination_class = None
     search_fields = ['name', 'slug']
 
 
@@ -78,6 +78,7 @@ class CartViewSet(viewsets.ModelViewSet):
     queryset = Cart.objects.all()
     serializer_class = CartSerializer
     permission_classes = [permissions.IsAuthenticated]
+    pagination_class = None
 
     def get_queryset(self):
         return Cart.objects.filter(user=self.request.user).prefetch_related(

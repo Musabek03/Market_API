@@ -174,12 +174,18 @@ AUTH_USER_MODEL = "core.CustomUser"
 INTERNAL_IPS = [
     "127.0.0.1",
 ]
+
+# CORS_ALLOW_ALL_ORIGINS = True 
+# CORS_ALLOW_CREDENTIALS = True
+
 #nginx jibergen headerdi oqiw ushin
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # CSRF ngrok ushin kerek
 CSRF_TRUSTED_ORIGINS = [
-    "https://*.ngrok-free.app", 
+    #env("SERVER_DOMAIN"),
+    'https://*.ngrok-free.dev',
+    'https://*.ngrok-free.app', 
     "http://localhost", 
     "http://127.0.0.1"
 ]

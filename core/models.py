@@ -5,9 +5,6 @@ from django.contrib.auth.models import AbstractUser
 class CustomUser(AbstractUser):
     CHOICES = [("admin", "Admin"), ("client", "Client")]
 
-    role = models.CharField(
-        max_length=15, choices=CHOICES, default="client", verbose_name="role"
-    )
     phone_number = models.CharField(
         max_length=20, unique=True, verbose_name="Telefon nomeri"
     )
@@ -134,7 +131,7 @@ class Order(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.user.username} din {self.id} buytirtpasi"
+        return f"{self.user.username} din buytirtpasi"
 
 
 class OrderItem(models.Model):

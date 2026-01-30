@@ -32,9 +32,15 @@ class CategorySerializer(serializers.ModelSerializer):
              for child in children
                 ]
 
+class CategoryShortSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Category
+        fields = ["id", "name", "slug"]
+
+
 
 class ProductsSerializer(serializers.ModelSerializer):
-    category = CategorySerializer(read_only=True)
+    category = CategoryShortSerializer(read_only=True)
     category_id = serializers.PrimaryKeyRelatedField(
         queryset=Category.objects.all(), source="category", write_only=True
     )
