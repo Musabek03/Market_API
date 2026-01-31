@@ -1,5 +1,6 @@
 from django.shortcuts import render
-from rest_framework import viewsets, filters, permissions, status, generics
+from rest_framework import viewsets, filters, permissions, status, generics,mixins
+from rest_framework.viewsets import GenericViewSet
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.decorators import action
 from django.shortcuts import get_object_or_404
@@ -10,6 +11,7 @@ from django.db import transaction
 from .serializers import (
     ProductsSerializer,
     CartSerializer,
+    CartItemSerializer,
     OrderSerializer,
     UserRegisterSerializer,
     ReviewSerializer,
@@ -24,7 +26,7 @@ from .models import CustomUser, Product, Cart, CartItem, Order, OrderItem, Revie
 from .filters import ProductFilter
 from rest_framework import permissions
 from rest_framework.exceptions import ValidationError
-from .permissions import IsAdminOrReadOnly
+from .permissions import IsAdminOrReadOnly, IsOwnerOrReadOnly
 import random
 import requests
 from django.core.cache import cache
@@ -34,13 +36,14 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import get_user_model
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
+from rest_framework.exceptions import MethodNotAllowed
 
 User = get_user_model()
 
 
 
 
-class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
+class CategoryViewSet(mixins.ListModelMixin, GenericViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
     permission_classes = [permissions.AllowAny]
@@ -74,19 +77,23 @@ class ProductViewSet(viewsets.ModelViewSet):
     ordering = ["-price"]
 
 
-class CartViewSet(viewsets.ModelViewSet):
+class CartViewSet(GenericViewSet):
     queryset = Cart.objects.all()
     serializer_class = CartSerializer
     permission_classes = [permissions.IsAuthenticated]
     pagination_class = None
 
     def get_queryset(self):
-        return Cart.objects.filter(user=self.request.user).prefetch_related(
-            "items__product"
-        )
+        return Cart.objects.filter(user=self.request.user)
+    
+    def list(self,request):
+        cart, created = Cart.objects.get_or_create(user=request.user)
+        serializer = self.get_serializer(cart)
+        return Response(serializer.data)
+    
 
-    def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+    # def perform_create(self, serializer):
+    #     serializer.save(user=self.request.user)
 
     @extend_schema(request=CartAddSerializer)
     @action(detail=False, methods=["post"])
@@ -129,21 +136,31 @@ class CartViewSet(viewsets.ModelViewSet):
         return Response(
             {"Success": "Product sebetten oshirildi"}, status=status.HTTP_204_NO_CONTENT
         )
+    
+    
+class CartItemsViewSet(mixins.DestroyModelMixin, mixins.UpdateModelMixin, GenericViewSet):
+    serializer_class = CartItemSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    http_method_names = ['delete','patch']
+
+    def get_queryset(self):
+        return CartItem.objects.filter(cart__user=self.request.user)
 
 
-class OrderViewSet(viewsets.ModelViewSet):
+class OrderViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, GenericViewSet):
     queryset = Order.objects.all()
     serializer_class = OrderSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return Order.objects.filter(user=self.request.user)
+        return Order.objects.filter(user=self.request.user).prefetch_related('orderitems__product')
+    
 
     @extend_schema(request=CheckoutSerializer, responses=OrderSerializer)
     @action(detail=False, methods=["post"])
     def checkout(self, request):
         serializer = CheckoutSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        serializer.is_valid(raise_exception=True)   
 
         user = request.user
         address = serializer.validated_data["address"]
@@ -209,6 +226,7 @@ class RegisterView(generics.CreateAPIView):
 class UserProfileView(generics.RetrieveUpdateAPIView):
     serializer_class = UserProfileSerializer
     permission_classes = [permissions.IsAuthenticated]
+    http_method_names = ['get', 'patch']
 
     def get_object(self):
         return self.request.user
@@ -217,7 +235,8 @@ class UserProfileView(generics.RetrieveUpdateAPIView):
 class ReviewViewSet(viewsets.ModelViewSet):
     queryset = Review.objects.all()
     serializer_class = ReviewSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsOwnerOrReadOnly]
+    http_method_names = ['get', 'post', 'patch','delete']
 
     def perform_create(self, serializer):
         user = self.request.user

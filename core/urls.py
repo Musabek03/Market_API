@@ -10,7 +10,8 @@ from .views import (
     UserProfileView,
     TelegramWebhookView,
     LoginWithCodeView,
-    SetPasswordView
+    SetPasswordView,
+    CartItemsViewSet
 )
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
@@ -22,6 +23,7 @@ router = DefaultRouter()
 router.register(r"categories",CategoryViewSet, basename="category")
 router.register(r"products", ProductViewSet, basename="product")
 router.register(r"cart", CartViewSet, basename="cart")
+router.register(r"cart-items", CartItemsViewSet, basename="cart-items") 
 router.register(r"orders", OrderViewSet, basename="Orders")
 router.register(r"reviews", ReviewViewSet, basename="reviews")
 
