@@ -30,11 +30,11 @@ router.register(r"reviews", ReviewViewSet, basename="reviews")
 
 urlpatterns = [
     path("", include(router.urls)),
-    path("register/", RegisterView.as_view(), name="register"),
-    path("login/", TokenObtainPairView.as_view(), name="login"),
     path("token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path('profile/', UserProfileView.as_view(), name='user-profile'),
     path('telegram-webhook/', TelegramWebhookView.as_view(),name='telegram-webhook'),
     path('auth/telegram/', LoginWithCodeView.as_view(), name='telegram-login'),
-    path('profile/set-password/', SetPasswordView.as_view(), name='set-password')
+    #path("register/", RegisterView.as_view(), name="register"),
+    #path("login/", TokenObtainPairView.as_view(), name="login"),
+    #path('profile/set-password/', SetPasswordView.as_view(), name='set-password')
 ]

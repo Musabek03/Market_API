@@ -35,7 +35,7 @@ class NotificationAdmin(admin.ModelAdmin):
 
 @admin.register(CustomUser)
 class CustomUserAdmin(UserAdmin):
-     list_display = ('username', 'first_name', 'last_name', 'phone_number', 'role', 'is_staff', 'is_verified')
+     list_display = ('username', 'first_name', 'last_name', 'phone_number',  'is_staff', 'is_verified')
 
      fieldsets = (
         (None, {'fields': ('username', 'password')}), 

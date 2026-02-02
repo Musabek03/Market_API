@@ -23,7 +23,7 @@ from .serializers import (
     SetPasswordSerializer,
 )
 from .models import CustomUser, Product, Cart, CartItem, Order, OrderItem, Review, Category
-from .filters import ProductFilter
+from .filters import ProductFilter,CategoryFilter, ReviewFilter
 from rest_framework import permissions
 from rest_framework.exceptions import ValidationError
 from .permissions import IsAdminOrReadOnly, IsOwnerOrReadOnly
@@ -47,20 +47,22 @@ class CategoryViewSet(mixins.ListModelMixin, GenericViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
     permission_classes = [permissions.AllowAny]
-    filter_backends = [filters.SearchFilter]
+    filter_backends = [filters.SearchFilter, DjangoFilterBackend]
+    filterset_class = CategoryFilter 
     pagination_class = None
     search_fields = ['name', 'slug']
 
 
     def get_queryset(self):
-        queryset =  Category.objects.filter(parent__isnull =True).prefetch_related('child')
+        queryset =  Category.objects.all().prefetch_related('child')
 
         search_query = self.request.query_params.get('search', None)
+        parent_id = self.request.query_params.get('parent_id', None)
 
-        if search_query:
-            return queryset
-        else:
-            return queryset.filter(parent__isnull=True)
+        if search_query or parent_id:
+            return queryset 
+        
+        return queryset.filter(parent__isnull=True)
 
 class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all().select_related("category")
@@ -73,8 +75,9 @@ class ProductViewSet(viewsets.ModelViewSet):
     ]
     search_fields = ["name"]
     filterset_class = ProductFilter 
-    ordering_fields = ["price"]
+    ordering_fields = ["price", "name",]
     ordering = ["-price"]
+    http_method_names = ['get', 'post', 'patch','delete']
 
 
 class CartViewSet(GenericViewSet):
@@ -83,18 +86,7 @@ class CartViewSet(GenericViewSet):
     permission_classes = [permissions.IsAuthenticated]
     pagination_class = None
 
-    def get_queryset(self):
-        return Cart.objects.filter(user=self.request.user)
     
-    def list(self,request):
-        cart, created = Cart.objects.get_or_create(user=request.user)
-        serializer = self.get_serializer(cart)
-        return Response(serializer.data)
-    
-
-    # def perform_create(self, serializer):
-    #     serializer.save(user=self.request.user)
-
     @extend_schema(request=CartAddSerializer)
     @action(detail=False, methods=["post"])
     def add(self, request):
@@ -128,23 +120,31 @@ class CartViewSet(GenericViewSet):
             {"success": "Product sebetke qosildi"}, status=status.HTTP_201_CREATED
         )
 
-    @action(detail=True, methods=["delete"])
-    def remove(self, request, pk=None):
-        cart_item = get_object_or_404(CartItem, id=pk, cart__user=self.request.user)
-        cart_item.delete()
+    # @action(detail=True, methods=["delete"])
+    # def remove(self, request, pk=None):
+    #     cart_item = get_object_or_404(CartItem, id=pk, cart__user=self.request.user)
+    #     cart_item.delete()
 
-        return Response(
-            {"Success": "Product sebetten oshirildi"}, status=status.HTTP_204_NO_CONTENT
-        )
+    #     return Response(
+    #         {"Success": "Product sebetten oshirildi"}, status=status.HTTP_204_NO_CONTENT
+    #     )
     
     
-class CartItemsViewSet(mixins.DestroyModelMixin, mixins.UpdateModelMixin, GenericViewSet):
+class CartItemsViewSet(mixins.ListModelMixin,mixins.DestroyModelMixin, mixins.UpdateModelMixin, GenericViewSet):
     serializer_class = CartItemSerializer
     permission_classes = [permissions.IsAuthenticated]
-    http_method_names = ['delete','patch']
+    http_method_names = ['get', 'delete', 'patch']
 
     def get_queryset(self):
         return CartItem.objects.filter(cart__user=self.request.user)
+    
+    # def get_queryset(self):
+    #     return Cart.objects.filter(user=self.request.user)
+    
+    # def list(self,request):
+    #     cart, created = Cart.objects.get_or_create(user=request.user)
+    #     serializer = self.get_serializer(cart)
+    #     return Response(serializer.data)
 
 
 class OrderViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, GenericViewSet):
@@ -236,6 +236,8 @@ class ReviewViewSet(viewsets.ModelViewSet):
     queryset = Review.objects.all()
     serializer_class = ReviewSerializer
     permission_classes = [permissions.IsAuthenticated, IsOwnerOrReadOnly]
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = ReviewFilter 
     http_method_names = ['get', 'post', 'patch','delete']
 
     def perform_create(self, serializer):
@@ -252,6 +254,8 @@ class ReviewViewSet(viewsets.ModelViewSet):
             raise ValidationError("Siz bul onimdi satip almagansiz")
 
         serializer.save(user=user, product=product)
+
+
 
 
 
