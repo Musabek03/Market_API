@@ -3,7 +3,6 @@ from django.contrib.auth.models import AbstractUser
 
 
 class CustomUser(AbstractUser):
-    CHOICES = [("admin", "Admin"), ("client", "Client")]
 
     phone_number = models.CharField(
         max_length=20, unique=True, verbose_name="Telefon nomeri"
