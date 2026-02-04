@@ -10,7 +10,6 @@ from django_filters.rest_framework import DjangoFilterBackend
 from django.db import transaction
 from .serializers import (
     ProductsSerializer,
-    CartSerializer,
     CartItemSerializer,
     OrderSerializer,
     UserRegisterSerializer,
@@ -21,6 +20,7 @@ from .serializers import (
     UserProfileSerializer,
     TelegramLoginSerializer,
     SetPasswordSerializer,
+    CartGetSerializer
 )
 from .models import CustomUser, Product, Cart, CartItem, Order, OrderItem, Review, Category
 from .filters import ProductFilter,CategoryFilter, ReviewFilter
@@ -82,9 +82,17 @@ class ProductViewSet(viewsets.ModelViewSet):
 
 class CartViewSet(GenericViewSet):
     queryset = Cart.objects.all()
-    serializer_class = CartSerializer
+    serializer_class = CartGetSerializer
     permission_classes = [permissions.IsAuthenticated]
     pagination_class = None
+
+    def get_queryset(self):
+        return Cart.objects.filter(user=self.request.user)
+    
+    def list(self,request):
+        cart, created = Cart.objects.get_or_create(user=request.user)
+        serializer = self.get_serializer(cart)
+        return Response(serializer.data)
 
     
     @extend_schema(request=CartAddSerializer)
@@ -120,15 +128,6 @@ class CartViewSet(GenericViewSet):
             {"success": "Product sebetke qosildi"}, status=status.HTTP_201_CREATED
         )
 
-    # @action(detail=True, methods=["delete"])
-    # def remove(self, request, pk=None):
-    #     cart_item = get_object_or_404(CartItem, id=pk, cart__user=self.request.user)
-    #     cart_item.delete()
-
-    #     return Response(
-    #         {"Success": "Product sebetten oshirildi"}, status=status.HTTP_204_NO_CONTENT
-    #     )
-    
     
 class CartItemsViewSet(mixins.ListModelMixin,mixins.DestroyModelMixin, mixins.UpdateModelMixin, GenericViewSet):
     serializer_class = CartItemSerializer
@@ -138,13 +137,7 @@ class CartItemsViewSet(mixins.ListModelMixin,mixins.DestroyModelMixin, mixins.Up
     def get_queryset(self):
         return CartItem.objects.filter(cart__user=self.request.user)
     
-    # def get_queryset(self):
-    #     return Cart.objects.filter(user=self.request.user)
-    
-    # def list(self,request):
-    #     cart, created = Cart.objects.get_or_create(user=request.user)
-    #     serializer = self.get_serializer(cart)
-    #     return Response(serializer.data)
+   
 
 
 class OrderViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, GenericViewSet):
