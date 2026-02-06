@@ -1,7 +1,6 @@
 from django.shortcuts import render
 from rest_framework import viewsets, filters, permissions, status, generics,mixins
 from rest_framework.viewsets import GenericViewSet
-from rest_framework.pagination import PageNumberPagination
 from rest_framework.decorators import action
 from django.shortcuts import get_object_or_404
 from rest_framework.response import Response
@@ -89,7 +88,8 @@ class CartViewSet(GenericViewSet):
     def get_queryset(self):
         return Cart.objects.filter(user=self.request.user)
     
-    def list(self,request):
+    @action(detail=False, methods=["get"])
+    def my_cart(self, request):
         cart, created = Cart.objects.get_or_create(user=request.user)
         serializer = self.get_serializer(cart)
         return Response(serializer.data)
@@ -210,6 +210,23 @@ class OrderViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, GenericView
 
         return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
 
+    @extend_schema(request=None,responses=OrderSerializer)
+    @action(detail=True,methods=['post'])
+    def pay(self,request, pk=None):
+        order = self.get_object()
+
+        if order.status != 'kutilmekte':
+            return Response({'error': 'Bul buyirtpa ushin tolem qiliw mumkin emes(yamasa tolenip bolingan buytirpa)'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        order.status = 'tolendi'
+        order.save()
+
+        return Response({
+            "order_id": order.id,
+            "status": order.status,
+            "message": "Tolem tabisli tolendi!"
+        }, status=status.HTTP_200_OK)
+
 
 class RegisterView(generics.CreateAPIView):
     queryset = CustomUser.objects.all()
@@ -269,58 +286,127 @@ class SetPasswordView(APIView):
 
 
 #Telegram bot API
-
 class TelegramWebhookView(APIView):
     authentication_classes = []
     permission_classes = []
 
     @method_decorator(csrf_exempt)
     def post(self, request, *args, **kwargs):
-        update = request.data
-        if "message" in update:
-            message = update["message"]
-            chat_id = message["chat"]["id"]
+        try:
+            update = request.data
             
-            # 1. /start
-            if "text" in message and message["text"] == "/start":
-                self.send_contact_request(chat_id)
+            if "message" in update:
+                message = update["message"]
+                chat_id = message["chat"]["id"]
+                
+                # 1. TEXT XABARLAR
+                if "text" in message:
+                    text = message["text"]
+                    
+                    if text == "/start":
+                        self.send_contact_request(chat_id)
+                    
+                    # Login komandasi yamasa Knopka
+                    elif text == "/login" or text == "🔐 Kiriw kodın alıw":
+                        self.handle_login_request(chat_id)
+
+                # 2. CONTACT
+                elif "contact" in message:
+                    self.handle_contact(message, chat_id)
             
-            # 2. CONTACT jiberilgende
-            elif "contact" in message:
-                phone_number = message["contact"]["phone_number"]
-                if not phone_number.startswith('+'):
-                    phone_number = '+' + phone_number
-                
-                first_name = message["from"].get("first_name", "")
-                last_name = message["from"].get("last_name", "")
-                
-                # Kod jaratiw
-                code = ''.join([str(random.randint(0, 9)) for _ in range(6)])
-                
-                # CACHE-ke saqlaw (Chat ID qosildi)
-                cache_data = {
-                    "phone_number": phone_number,
-                    "first_name": first_name,
-                    "last_name": last_name,
-                    "chat_id": chat_id  # <--- Chat ID ni da saqlaymiz
-                }
-                
-                # 5 minutqa saqlaymiz
-                cache.set(f"auth_code_{code}", cache_data, timeout=300)
-                
-                self.send_message(chat_id, f"Sizdin tastiyqlaw kodiniz: {code}\n(Bul kod 5 minut aktiv)")
+            return Response({"status": "ok"})
+        except Exception as e:
+            print(f"Telegram Error: {e}")
+            return Response({"status": "ok"})
+
+    # --- RATE LIMIT LOGIKASI ---
+
+    def check_rate_limit(self, chat_id):
+        """
+        Eger user sońǵı 2 minutta kod alǵan bolsa True qaytaradı.
+        """
+        is_limited = cache.get(f"rate_limit_{chat_id}")
+        if is_limited:
+            self.send_message(chat_id, "⚠️ Siz aldınǵı kodtı jaqında aldıńız.\nIltimas, 2 minut kútiń.")
+            return True
+        return False
+
+    def set_rate_limit(self, chat_id):
+        """
+        Userdi 2 minutqa (120 sekund) bloklaw
+        """
+        cache.set(f"rate_limit_{chat_id}", "true", timeout=120)
+
+    # --- REQUEST HANDLERS ---
+
+    def handle_login_request(self, chat_id):
+        # 1. Rate Limit Tekseriw
+        if self.check_rate_limit(chat_id):
+            return
+
+        try:
+            # Userdi chat_id arqali tabamiz (Nomer soraw shart emes)
+            user = User.objects.get(telegram_chat_id=str(chat_id))
+            
+            code = ''.join([str(random.randint(0, 9)) for _ in range(6)])
+            
+            cache_data = {
+                "phone_number": user.phone_number,
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+                "chat_id": chat_id
+            }
+            cache.set(f"auth_code_{code}", cache_data, timeout=300) 
+            
+            # 2. Limit qoyıw & Kod jiberiw
+            self.set_rate_limit(chat_id)
+            self.send_message(chat_id, f"🔑 Kiriw kodıńız: {code}\n(5 minut aktiv)")
+            
+        except User.DoesNotExist:
+            self.send_message(chat_id, "Siz ele dizimnen ótpegensiz. Iltimas, 'Telefon nomerdi jiberiw' túymesin basıń.")
+            self.send_contact_request(chat_id)
+
+    def handle_contact(self, message, chat_id):
+        # 1. Rate Limit Tekseriw
+        if self.check_rate_limit(chat_id):
+            return
+
+        phone_number = message["contact"]["phone_number"]
+        if not phone_number.startswith('+'):
+            phone_number = '+' + phone_number
         
-        return Response({"status": "ok"})
+        first_name = message["from"].get("first_name", "")
+        last_name = message["from"].get("last_name", "")
+        
+        code = ''.join([str(random.randint(0, 9)) for _ in range(6)])
+        
+        cache_data = {
+            "phone_number": phone_number,
+            "first_name": first_name,
+            "last_name": last_name,
+            "chat_id": chat_id
+        }
+        
+        cache.set(f"auth_code_{code}", cache_data, timeout=300)
+        
+        # 2. Limit qoyiw & Kod jiberiw
+        self.set_rate_limit(chat_id)
+        self.send_message(chat_id, f"Sizdiń tastıyqlaw kodıńız: {code}\n(5 minut aktiv)")
+
+    # --- XABAR JIBERIW ---
 
     def send_contact_request(self, chat_id):
         url = f"https://api.telegram.org/bot{settings.TELEGRAM_BOT_TOKEN}/sendMessage"
         payload = {
             "chat_id": chat_id,
-            "text": "Dizimnen otiw ushin telefon nomerinizdi jiberin:",
+            "text": "Saytqa kiriw ushın telefon nomerińizdi jiberiń:",
             "reply_markup": {
-                "keyboard": [[{"text": "Telefon nomerdi jiberiw", "request_contact": True}]],
-                "one_time_keyboard": True,
-                "resize_keyboard": True
+                "keyboard": [
+                    [{"text": "📱 Telefon nomerdi jiberiw", "request_contact": True}],
+                    [{"text": "🔐 Kiriw kodın alıw"}] # Login knopkası
+                ],
+                "resize_keyboard": True,
+                "one_time_keyboard": False
             }
         }
         requests.post(url, json=payload)
@@ -330,7 +416,12 @@ class TelegramWebhookView(APIView):
         payload = {
             "chat_id": chat_id,
             "text": text,
-            "reply_markup": {"remove_keyboard": True}
+            "reply_markup": {
+                "keyboard": [
+                    [{"text": "🔐 Kiriw kodın alıw"}] # Turaqli knopka
+                ],
+                "resize_keyboard": True
+            }
         }
         requests.post(url, json=payload)
 
@@ -339,47 +430,46 @@ class LoginWithCodeView(APIView):
     authentication_classes = []
     permission_classes = []
 
-    # Swaggerge aytamiz: Bul view "TelegramLoginSerializer" isletedi
     @extend_schema(request=TelegramLoginSerializer) 
     def post(self, request):
-        # Serializer arqali validaciya (Swaggerde endi 'code' maydani shigadi)
         serializer = TelegramLoginSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
         code = serializer.validated_data['code']
         
-        # Cache tekseriw
+        # 1. Kodti Cache-ten tekseremiz
         cache_data = cache.get(f"auth_code_{code}")
         if not cache_data:
-            return Response({"error": "Kod qate yamasa muddeti otken"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Kod qáte yamasa múddeti ótken"}, status=status.HTTP_400_BAD_REQUEST)
         
         phone_number = cache_data.get("phone_number")
         first_name = cache_data.get("first_name", "")
         last_name = cache_data.get("last_name", "")
         chat_id = cache_data.get("chat_id")
         
-        # Login yamasa Register (Avtomat)
+        # 2. Userdi bazadan tabamiz yamasa jaratamiz
         user, created = User.objects.get_or_create(
             phone_number=phone_number,
             defaults={
                 'username': phone_number,
                 'first_name': first_name,
                 'last_name': last_name,
-                'telegram_chat_id': chat_id,
+                'telegram_chat_id': str(chat_id),
                 'is_verified': True
             }
         )
         
-        # Eger user aldin bar bolip, biraq verified bolmasa
-        if not user.is_verified:
+        # 3. Chat ID ni janalaw (Eger aldin basqa telefondan kirgen bolsa yamasa bos bolsa)
+        if str(chat_id) and user.telegram_chat_id != str(chat_id):
+            user.telegram_chat_id = str(chat_id)
             user.is_verified = True
-            user.telegram_chat_id = chat_id
             user.save()
 
-        # Kodti oshiremiz
+        # 4. Kodti oshiremiz
         cache.delete(f"auth_code_{code}")
         
+        # 5. Token beremiz
         refresh = RefreshToken.for_user(user)
         return Response({
             "access": str(refresh.access_token),

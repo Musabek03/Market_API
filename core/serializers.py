@@ -12,25 +12,26 @@ from .models import (
 from django.utils.text import slugify
 from rest_framework.exceptions import ValidationError
 from django.core.cache import cache
+from drf_spectacular.utils import extend_schema_field
 
 
 class CategorySerializer(serializers.ModelSerializer):
-    children = serializers.SerializerMethodField()
+    #children = serializers.SerializerMethodField()
     class Meta:
         model = Category
-        fields = ["id", "name", "slug", "children"]
+        fields = ["id", "name", "slug"]
 
-    def get_children(self,obj):
+    # def get_children(self,obj):
         
-        children = obj.child.all()
+    #     children = obj.child.all()
 
-        return [ 
-            {"id": child.id,
-             "name": child.name,
-             "slug": child.slug
-             }
-             for child in children
-                ]
+    #     return [ 
+    #         {"id": child.id,
+    #          "name": child.name,
+    #          "slug": child.slug
+    #          }
+    #          for child in children
+    #             ]
 
 class CategoryShortSerializer(serializers.ModelSerializer):
     class Meta:
@@ -110,6 +111,7 @@ class CartGetSerializer(serializers.ModelSerializer):
         model = Cart
         fields = ['cart_item_ids', 'total_price']
 
+    @extend_schema_field(serializers.IntegerField())  
     def get_total_price(self, obj):
 
         items = obj.items.all()
@@ -120,6 +122,7 @@ class CartGetSerializer(serializers.ModelSerializer):
 
         return sum(prices)
     
+    @extend_schema_field(serializers.ListField(child=serializers.IntegerField()))
     def get_cart_item_ids(self, obj):
         return obj.items.values_list("id", flat=True)
 
