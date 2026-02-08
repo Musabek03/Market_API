@@ -323,19 +323,19 @@ class TelegramWebhookView(APIView):
 
     def check_rate_limit(self, chat_id):
         """
-        Eger user sońǵı 2 minutta kod alǵan bolsa True qaytaradı.
+        Eger user sońǵı 3 minutta kod alǵan bolsa True qaytaradı.
         """
         is_limited = cache.get(f"rate_limit_{chat_id}")
         if is_limited:
-            self.send_message(chat_id, "⚠️ Siz aldınǵı kodtı jaqında aldıńız.\nIltimas, 2 minut kútiń.")
+            self.send_message(chat_id, "⚠️ Siz aldınǵı kodtı jaqında aldıńız.\nIltimas, 3 minut kútiń.")
             return True
         return False
 
     def set_rate_limit(self, chat_id):
         """
-        Userdi 2 minutqa (120 sekund) bloklaw
+        Userdi 3 minutqa (180 sekund) bloklaw
         """
-        cache.set(f"rate_limit_{chat_id}", "true", timeout=120)
+        cache.set(f"rate_limit_{chat_id}", "true", timeout=180)
 
     # --- REQUEST HANDLERS ---
 
