@@ -16,22 +16,10 @@ from drf_spectacular.utils import extend_schema_field
 
 
 class CategorySerializer(serializers.ModelSerializer):
-    #children = serializers.SerializerMethodField()
     class Meta:
         model = Category
         fields = ["id", "name", "slug"]
 
-    # def get_children(self,obj):
-        
-    #     children = obj.child.all()
-
-    #     return [ 
-    #         {"id": child.id,
-    #          "name": child.name,
-    #          "slug": child.slug
-    #          }
-    #          for child in children
-    #             ]
 
 class CategoryShortSerializer(serializers.ModelSerializer):
     class Meta:
@@ -76,30 +64,10 @@ class CartItemSerializer(serializers.ModelSerializer):
         fields = ["id", "product", "product_id", "quantity"]
 
 
-# class CartSerializer(serializers.ModelSerializer):
-
-#     items = CartItemSerializer(many=True, read_only=True)
-#     total_price = serializers.SerializerMethodField()
-
-#     def get_total_price(self, obj):
-
-#         items = obj.items.all()
-#         prices = []
-
-#         for item in items:
-#             prices.append(item.get_total_price())
-
-#         return sum(prices)
-
-#     class Meta:
-#         model = Cart
-#         fields = ["id", "user", "items", "total_price"]
-
-
 class CartAddSerializer(serializers.Serializer):
 
     product_id = serializers.IntegerField()
-    quantity = serializers.IntegerField(default=1)
+    quantity = serializers.IntegerField(default=1, min_value=1)
 
 
 
@@ -157,6 +125,32 @@ class CheckoutSerializer(serializers.Serializer):
     address = serializers.CharField(max_length=450, required=True)
     cart_items = serializers.ListField(child=serializers.IntegerField(), required=False)
 
+    
+
+class UserProfileSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = CustomUser
+        fields = ['id', 'username', 'first_name', 'last_name', 'phone_number', 'Address', 'email']
+        read_only_fields = ['id', 'phone_number']
+
+ 
+#Swagger ushin
+class TelegramLoginSerializer(serializers.Serializer):
+    code = serializers.CharField(required=True, help_text="Telegram bot jibergen 6 xanali kod")
+
+
+class ReviewSerializer(serializers.ModelSerializer):
+    user = serializers.StringRelatedField(read_only=True)
+
+    class Meta:
+        model = Review
+        fields = ["id", "user", "product", "text", "rating", "created_at"]
+
+
+
+
+
 
 class UserRegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, style={'input_type':'password'}, help_text="Parol")
@@ -209,15 +203,6 @@ class UserRegisterSerializer(serializers.ModelSerializer):
         user.save()
 
         return user
-    
-
-class UserProfileSerializer(serializers.ModelSerializer):
-
-    class Meta:
-        model = CustomUser
-        fields = ['id', 'username', 'first_name', 'last_name', 'phone_number', 'Address', 'email']
-        read_only_fields = ['id', 'phone_number']
-
 
 class SetPasswordSerializer(serializers.Serializer):
     new_password = serializers.CharField(write_only=True, required=True, style={'input_type': 'password'}, help_text="Jana Parol")
@@ -227,16 +212,3 @@ class SetPasswordSerializer(serializers.Serializer):
         if attrs['new_password'] != attrs['confirm_password']:
             raise serializers.ValidationError({'confirm_password': 'Paroller saykes kelmeydi'})
         return attrs
-
-
-#Swagger ushin
-class TelegramLoginSerializer(serializers.Serializer):
-    code = serializers.CharField(required=True, help_text="Telegram bot jibergen 6 xanali kod")
-
-
-class ReviewSerializer(serializers.ModelSerializer):
-    user = serializers.StringRelatedField(read_only=True)
-
-    class Meta:
-        model = Review
-        fields = ["id", "user", "product", "text", "rating", "created_at"]

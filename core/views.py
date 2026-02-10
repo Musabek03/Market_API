@@ -35,7 +35,6 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import get_user_model
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
-from rest_framework.exceptions import MethodNotAllowed
 
 User = get_user_model()
 
@@ -92,40 +91,42 @@ class CartViewSet(GenericViewSet):
     def my_cart(self, request):
         cart, created = Cart.objects.get_or_create(user=request.user)
         serializer = self.get_serializer(cart)
+        cart_qs = Cart.objects.filter(id=cart.id).prefetch_related('items__product').first()
+        serializer = CartGetSerializer(cart_qs)
         return Response(serializer.data)
 
     
     @extend_schema(request=CartAddSerializer)
     @action(detail=False, methods=["post"])
     def add(self, request):
-        product_id = request.data.get("product_id")
-        quantity = int(request.data.get("quantity", 1))
+        serializer = CartAddSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
 
-        product = get_object_or_404(
-            Product, id=product_id
-        )  # Sol onim barma joqpa soni tekserip atirmiz
+        product_id = serializer.validated_data["product_id"]
+        quantity = serializer.validated_data["quantity"]
 
-        if product.stock < quantity:  # Bazada jeterli product barma tekserip atirmiz
+        product = get_object_or_404(Product, id=product_id)
+
+        cart, _ = Cart.objects.get_or_create(user=request.user)
+
+        cart_item, created = CartItem.objects.get_or_create(
+            cart=cart, product=product
+        )
+
+        new_quantity = quantity if created else cart_item.quantity + quantity
+
+        if product.stock < new_quantity:
             return Response(
                 {"error": "bazadan bunsha product joq"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        cart, created = Cart.objects.get_or_create(user=request.user)
-
-        cart_item, item_created = CartItem.objects.get_or_create(
-            cart=cart, product=product
-        )
-
-        if item_created:
-            cart_item.quantity = quantity
-        else:
-            cart_item.quantity += quantity
-
+        cart_item.quantity = new_quantity
         cart_item.save()
 
         return Response(
-            {"success": "Product sebetke qosildi"}, status=status.HTTP_201_CREATED
+            {"success": "Product sebetke qosildi"},
+            status=status.HTTP_201_CREATED
         )
 
     
@@ -136,6 +137,24 @@ class CartItemsViewSet(mixins.ListModelMixin,mixins.DestroyModelMixin, mixins.Up
 
     def get_queryset(self):
         return CartItem.objects.filter(cart__user=self.request.user)
+    
+    def perform_update(self, serializer):
+        cart_item = self.get_object()
+        product = cart_item.product
+
+        new_quantity = serializer.validated_data.get('quantity')
+
+        if new_quantity:
+
+            if product.stock < new_quantity:
+                raise ValidationError(
+                    {"quantity": f"Bazada jetkiliksiz"}
+                )
+            
+            if new_quantity < 1:
+                raise ValidationError({"quantity": "Sani 1 den kem bolmawi kerek."})
+
+        serializer.save()
     
    
 
@@ -228,11 +247,6 @@ class OrderViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, GenericView
         }, status=status.HTTP_200_OK)
 
 
-class RegisterView(generics.CreateAPIView):
-    queryset = CustomUser.objects.all()
-    serializer_class = UserRegisterSerializer
-
-
 class UserProfileView(generics.RetrieveUpdateAPIView):
     serializer_class = UserProfileSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -261,28 +275,11 @@ class ReviewViewSet(viewsets.ModelViewSet):
         ).exists()
 
         if not satip_alingan:
-            raise ValidationError("Siz bul onimdi satip almagansiz")
+            raise ValidationError("Siz bul onimdi satip almagansiz yaki ele tolem qilmagansiz")
 
         serializer.save(user=user, product=product)
 
 
-
-
-
-class SetPasswordView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
-
-    @extend_schema(request=SetPasswordSerializer,responses={200:None})
-    def post(self,request):
-        serializer = SetPasswordSerializer(data=request.data)
-        if serializer.is_valid():
-            user = request.user
-            user.set_password(serializer.validated_data['new_password']) #Paroldi shifrlaydi
-            user.save()
-            
-            return Response({'message':'Parol ornatildi!'})
-        
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 #Telegram bot API
@@ -478,3 +475,26 @@ class LoginWithCodeView(APIView):
             "is_new_user": created,
             "message": "Xosh keldiniz!"
         })
+    
+
+class RegisterView(generics.CreateAPIView):
+    queryset = CustomUser.objects.all()
+    serializer_class = UserRegisterSerializer
+
+
+
+class SetPasswordView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    @extend_schema(request=SetPasswordSerializer,responses={200:None})
+    def post(self,request):
+        serializer = SetPasswordSerializer(data=request.data)
+        if serializer.is_valid():
+            user = request.user
+            user.set_password(serializer.validated_data['new_password']) #Paroldi shifrlaydi
+            user.save()
+            
+            return Response({'message':'Parol ornatildi!'})
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+   
