@@ -75,7 +75,7 @@ class ProductViewSet(viewsets.ModelViewSet):
     filterset_class = ProductFilter 
     ordering_fields = ["price", "name",]
     ordering = ["-price"]
-    http_method_names = ['get', 'post', 'patch','delete']
+    http_method_names = ['get']
 
 
 class CartViewSet(GenericViewSet):
@@ -203,7 +203,7 @@ class OrderViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, GenericView
                 if item.product.stock < item.quantity:
                     return Response(
                         {
-                            "error": f"{item.product.name} onim bazada jetkiliksiz, Bazada: {item.product.stock} dana produckt bar"
+                            "error": f"{item.product.name} Onim bazada jetkiliksiz"
                         },
                         status=status.HTTP_400_BAD_REQUEST,
                     )
