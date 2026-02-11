@@ -7,6 +7,7 @@ from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db import transaction
+from rest_framework.throttling import ScopedRateThrottle
 from .serializers import (
     ProductsSerializer,
     CartItemSerializer,
@@ -287,6 +288,9 @@ class TelegramWebhookView(APIView):
     authentication_classes = []
     permission_classes = []
 
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'telegram_webhook  '
+
     @method_decorator(csrf_exempt)
     def post(self, request, *args, **kwargs):
         try:
@@ -426,6 +430,9 @@ class TelegramWebhookView(APIView):
 class LoginWithCodeView(APIView):
     authentication_classes = []
     permission_classes = []
+
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'telegram_login'
 
     @extend_schema(request=TelegramLoginSerializer) 
     def post(self, request):
