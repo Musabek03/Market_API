@@ -258,7 +258,7 @@ class UserProfileView(generics.RetrieveUpdateAPIView):
 
 
 class ReviewViewSet(viewsets.ModelViewSet):
-    queryset = Review.objects.all()
+    queryset = Review.objects.all().select_related('user','product')
     serializer_class = ReviewSerializer
     permission_classes = [permissions.IsAuthenticated, IsOwnerOrReadOnly]
     filter_backends = [DjangoFilterBackend]
@@ -289,7 +289,7 @@ class TelegramWebhookView(APIView):
     permission_classes = []
 
     throttle_classes = [ScopedRateThrottle]
-    throttle_scope = 'telegram_webhook  '
+    throttle_scope = 'telegram_webhook'
 
     @method_decorator(csrf_exempt)
     def post(self, request, *args, **kwargs):
@@ -300,18 +300,17 @@ class TelegramWebhookView(APIView):
                 message = update["message"]
                 chat_id = message["chat"]["id"]
                 
-                # 1. TEXT XABARLAR
                 if "text" in message:
                     text = message["text"]
                     
                     if text == "/start":
                         self.send_contact_request(chat_id)
                     
-                    # Login komandasi yamasa Knopka
+
                     elif text == "/login" or text == "🔐 Kiriw kodın alıw":
                         self.handle_login_request(chat_id)
 
-                # 2. CONTACT
+
                 elif "contact" in message:
                     self.handle_contact(message, chat_id)
             
@@ -320,12 +319,9 @@ class TelegramWebhookView(APIView):
             print(f"Telegram Error: {e}")
             return Response({"status": "ok"})
 
-    # --- RATE LIMIT LOGIKASI ---
 
     def check_rate_limit(self, chat_id):
-        """
-        Eger user sońǵı 3 minutta kod alǵan bolsa True qaytaradı.
-        """
+
         is_limited = cache.get(f"rate_limit_{chat_id}")
         if is_limited:
             self.send_message(chat_id, "⚠️ Siz aldınǵı kodtı jaqında aldıńız.\nIltimas, 3 minut kútiń.")
@@ -333,20 +329,15 @@ class TelegramWebhookView(APIView):
         return False
 
     def set_rate_limit(self, chat_id):
-        """
-        Userdi 3 minutqa (180 sekund) bloklaw
-        """
+
         cache.set(f"rate_limit_{chat_id}", "true", timeout=180)
 
-    # --- REQUEST HANDLERS ---
 
     def handle_login_request(self, chat_id):
-        # 1. Rate Limit Tekseriw
         if self.check_rate_limit(chat_id):
             return
 
         try:
-            # Userdi chat_id arqali tabamiz (Nomer soraw shart emes)
             user = User.objects.get(telegram_chat_id=str(chat_id))
             
             code = ''.join([str(random.randint(0, 9)) for _ in range(6)])
@@ -359,7 +350,6 @@ class TelegramWebhookView(APIView):
             }
             cache.set(f"auth_code_{code}", cache_data, timeout=300) 
             
-            # 2. Limit qoyıw & Kod jiberiw
             self.set_rate_limit(chat_id)
             self.send_message(chat_id, f"🔑 Kiriw kodıńız: {code}\n(5 minut aktiv)")
             
@@ -368,7 +358,6 @@ class TelegramWebhookView(APIView):
             self.send_contact_request(chat_id)
 
     def handle_contact(self, message, chat_id):
-        # 1. Rate Limit Tekseriw
         if self.check_rate_limit(chat_id):
             return
 
@@ -390,11 +379,9 @@ class TelegramWebhookView(APIView):
         
         cache.set(f"auth_code_{code}", cache_data, timeout=300)
         
-        # 2. Limit qoyiw & Kod jiberiw
         self.set_rate_limit(chat_id)
         self.send_message(chat_id, f"Sizdiń tastıyqlaw kodıńız: {code}\n(5 minut aktiv)")
 
-    # --- XABAR JIBERIW ---
 
     def send_contact_request(self, chat_id):
         url = f"https://api.telegram.org/bot{settings.TELEGRAM_BOT_TOKEN}/sendMessage"
@@ -404,7 +391,7 @@ class TelegramWebhookView(APIView):
             "reply_markup": {
                 "keyboard": [
                     [{"text": "📱 Telefon nomerdi jiberiw", "request_contact": True}],
-                    [{"text": "🔐 Kiriw kodın alıw"}] # Login knopkası
+                    [{"text": "🔐 Kiriw kodın alıw"}] 
                 ],
                 "resize_keyboard": True,
                 "one_time_keyboard": False
@@ -419,7 +406,7 @@ class TelegramWebhookView(APIView):
             "text": text,
             "reply_markup": {
                 "keyboard": [
-                    [{"text": "🔐 Kiriw kodın alıw"}] # Turaqli knopka
+                    [{"text": "🔐 Kiriw kodın alıw"}] 
                 ],
                 "resize_keyboard": True
             }
@@ -441,8 +428,7 @@ class LoginWithCodeView(APIView):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
         code = serializer.validated_data['code']
-        
-        # 1. Kodti Cache-ten tekseremiz
+
         cache_data = cache.get(f"auth_code_{code}")
         if not cache_data:
             return Response({"error": "Kod qáte yamasa múddeti ótken"}, status=status.HTTP_400_BAD_REQUEST)
@@ -452,7 +438,7 @@ class LoginWithCodeView(APIView):
         last_name = cache_data.get("last_name", "")
         chat_id = cache_data.get("chat_id")
         
-        # 2. Userdi bazadan tabamiz yamasa jaratamiz
+
         user, created = User.objects.get_or_create(
             phone_number=phone_number,
             defaults={
@@ -464,16 +450,13 @@ class LoginWithCodeView(APIView):
             }
         )
         
-        # 3. Chat ID ni janalaw (Eger aldin basqa telefondan kirgen bolsa yamasa bos bolsa)
         if str(chat_id) and user.telegram_chat_id != str(chat_id):
             user.telegram_chat_id = str(chat_id)
             user.is_verified = True
             user.save()
 
-        # 4. Kodti oshiremiz
         cache.delete(f"auth_code_{code}")
         
-        # 5. Token beremiz
         refresh = RefreshToken.for_user(user)
         return Response({
             "access": str(refresh.access_token),
@@ -484,6 +467,9 @@ class LoginWithCodeView(APIView):
         })
     
 
+
+
+#Keyin qollaniliwi mumkin bolgan  viewsler
 class RegisterView(generics.CreateAPIView):
     queryset = CustomUser.objects.all()
     serializer_class = UserRegisterSerializer

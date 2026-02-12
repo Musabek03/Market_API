@@ -10,7 +10,7 @@ cd Market_API
 ```
 ### env.example fayli tiykarinda .env faylin jaratiw kerek.
 ```
-SECRET_KEY=django-insecure-sizdin-super-secret-giltiniz
+SECRET_KEY=Super-secret-key
 DEBUG=True
 ALLOWED_HOSTS=*
 
@@ -35,6 +35,8 @@ docker-compose exec web python manage.py createsuperuser
 
 ### Server iske tuskennen keyin, API hujjetlerin tomendegi siltemeler arqali koriwiniz mumkin:
 
+Schema faylin juklep aliw(Postman ushin):  http://127.0.0.1/api/schema/
+
 Swagger UI (Interaktiv): http://127.0.0.1/api/schema/swagger-ui/
 
 Redoc: http://127.0.0.1/api/schema/redoc/
@@ -44,23 +46,33 @@ Redoc: http://127.0.0.1/api/schema/redoc/
 
 Metod	URL	Tusindirme
 
-POST	/api/register/	Jana paydalaniwshi dizimnen otiw
+POST    /api/auth/telegram  dizimnen otiw ham login qiliw
 
-POST	/api/login/	Kiriw (Token aliw)
+GET    /api/products/	Barliq onimlerdi koriw (Filter, Search bar)
 
-GET	/api/products/	Barliq onimlerdi koriw (Filter, Search bar)
+GET    /api/categories/ Categoriyalar dizimin koriw
 
-GET	/api/products/{id}/	Aniq bir onim haqqinda magliwmat
+GET    /api/products/{id}/	Aniq bir onim haqqinda magliwmat
 
-POST	/api/cart/add/	Sebetke onim qosiw
+POST    /api/cart/add/	Sebetke onim qosiw
 
-GET	/api/cart/	Oz sebetinizdi koriw
+GET    /api/cart/my_cart/	Oz sebetinizdi koriw(Total_price ham cart-items idlari)
 
-POST	/api/orders/checkout/	Buyirtpa beriw (Order jaratiw)
+GET    /cart-items/ Cart-itemslerdi koriw
 
-GET	/api/orders/	Buyirtpalar tariyxin koriw
+POST    /api/orders/checkout/	Buyirtpa beriw (Order jaratiw)
+
+GET	   /api/orders/	Buyirtpalar tariyxin koriw
+
+POST    /api/orders/{id}/pay/ Order statusin "tolendi"ge ozgertiw
+
+GET    /api/reviews/  Qaldirilgan pikirlerdi koriw
 
 POST	/api/reviews/	Satip alingan onimge pikir qaldiriw
+
+GET    /api/profile/  User ozi haqqinda magliwmatlardi koriwi
+
+PATCH    /api/profile/  User ozi haqqindagi magliwmatlardi ozgertiwi
 
 
 
