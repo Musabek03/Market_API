@@ -91,9 +91,8 @@ class CartViewSet(GenericViewSet):
     @action(detail=False, methods=["get"])
     def my_cart(self, request):
         cart, created = Cart.objects.get_or_create(user=request.user)
+        cart = Cart.objects.prefetch_related('items__product').get(id=cart.id)
         serializer = self.get_serializer(cart)
-        cart_qs = Cart.objects.filter(id=cart.id).prefetch_related('items__product').first()
-        serializer = CartGetSerializer(cart_qs)
         return Response(serializer.data)
 
     
